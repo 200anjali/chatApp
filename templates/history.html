@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat History of {{ username }}</title>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #messageContainer {
+            max-width: 600px;
+            margin: auto;
+        }
+
+        .message {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .highlight {
+            background-color: yellow;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chat History of {{ username }} and {{partner_username}}</h1>
+    <label for="searchInput">Search: </label>
+    <input type="text" id="searchInput" oninput="searchMessages()">
+    <div id="messageContainer">
+        {% for message in messages %}
+            <div class="message">
+                <strong>{{ message.sender }}</strong>: <span id="messageText">{{ message.message }}</span><br>
+                {% if message.timestamp %}
+                    <small>{{ message.timestamp }}</small>
+                {% endif %}
+                <!-- {% if read_partner_username >= message.timestamp %}
+                   <small>read</small>
+                {% else %}
+                   <small>delivered</small>
+                {%endif%} -->
+            </div>
+        {% endfor %}
+    </div>
+    {% if total_pages > 1 %}
+        <button id="loadMoreBtn" onclick="loadMoreMessages()">Load More</button>
+    {% endif %}
+
+    <script>
+        let page = 1;
+
+        function loadMoreMessages() {
+            page++;
+            fetch(`http://localhost:5000/chat_history?username={{ username }}&partner_username={{partner_username}}&room_id={{ room_id }}&page=${page}`)
+                .then(response => response.text())
+                .then(data => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(data, 'text/html');
+                    const messageContainer = doc.getElementById('messageContainer');
+                    appendMessagesToContainer(messageContainer);
+                    if (messageContainer.childElementCount === 0) {
+                        document.getElementById('loadMoreBtn').style.display = 'none';
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        }
+
+        function appendMessagesToContainer(messageContainer) {
+            const existingContainer = document.getElementById('messageContainer');
+            existingContainer.innerHTML += messageContainer.innerHTML;
+        }
+
+        function searchMessages() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const messages = document.querySelectorAll('.message');
+            console.log(searchTerm);
+            messages.forEach(message => {
+                const messageTextElement = message.querySelector('#messageText');
+                const messageText = messageTextElement.textContent;
+                const messageTextLower = messageTextElement.textContent.toLowerCase();
+                const highlightClass = 'highlight';
+
+                if (searchTerm && messageTextLower.includes(searchTerm)) {
+                    const highlightedText = messageText.replace(
+                        new RegExp(`(${searchTerm})`, 'gi'),
+                        (match, p1) => `<span class="${highlightClass}">${p1}</span>`
+                    );
+                    messageTextElement.innerHTML = highlightedText;
+                } else {
+                    messageTextElement.innerHTML = messageText;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
